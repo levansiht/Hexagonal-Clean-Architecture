@@ -1,10 +1,41 @@
+import { ICommandRepository, IQueryRepository, IRepository } from "@share/interface";
+import { ModelStatus } from "@share/model/base-model";
+import { PagingDTO } from "@share/model/paging";
 import { Op, Sequelize } from "sequelize";
-import { IRepository } from "../interface";
-import { ModelStatus } from "../model/base-model";
-import { PagingDTO } from "../model/paging";
 
 export abstract class BaseRepositorySequelize<Entity, Cond, UpdateDTO> implements IRepository<Entity, Cond, UpdateDTO> {
-  constructor(private readonly sequelize: Sequelize, private readonly modelName: string) { }
+  constructor(
+    readonly queryRepo: IQueryRepository<Entity, Cond>,
+    readonly cmdRepo: ICommandRepository<Entity, UpdateDTO>,
+  ) { }
+
+  async get(id: string): Promise<Entity | null> {
+    return await this.queryRepo.get(id);
+  }
+
+  async findByCond(cond: Cond): Promise<Entity | null> {
+    return await this.queryRepo.findByCond(cond);
+  }
+
+  async list(cond: Cond, paging: PagingDTO): Promise<Array<Entity>> {
+    return await this.queryRepo.list(cond, paging);
+  }
+
+  async insert(data: Entity): Promise<boolean> {
+    return await this.cmdRepo.insert(data);
+  }
+
+  async update(id: string, data: UpdateDTO): Promise<boolean> {
+    return await this.cmdRepo.update(id, data);
+  }
+
+  async delete(id: string, isHard: boolean): Promise<boolean> {
+    return await this.cmdRepo.delete(id, isHard);
+  }
+}
+
+export abstract class BaseQueryRepositorySequelize<Entity, Cond> implements IQueryRepository<Entity, Cond> {
+  constructor(readonly sequelize: Sequelize, readonly modelName: string) { }
 
   async get(id: string): Promise<Entity | null> {
     const data = await this.sequelize.models[this.modelName].findByPk(id);
@@ -46,6 +77,10 @@ export abstract class BaseRepositorySequelize<Entity, Cond, UpdateDTO> implement
 
     return rows.map((row) => row.get({ plain: true }));
   }
+}
+
+export abstract class BaseCommandRepositorySequelize<Entity, UpdateDTO> implements ICommandRepository<Entity, UpdateDTO> {
+  constructor(readonly sequelize: Sequelize, readonly modelName: string) { }
 
   async insert(data: Entity): Promise<boolean> {
     await this.sequelize.models[this.modelName].create(data as any);
